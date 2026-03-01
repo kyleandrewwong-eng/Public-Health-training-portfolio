@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Reflections Dashboard</title>
+    <style>
+        :root {
+            --color-bg: #f4f7f6;
+            --color-surface: #ffffff;
+            --color-text: #2d3748;
+            --color-text-muted: #718096;
+            --color-primary: #3182ce;
+            --color-primary-hover: #2b6cb0;
+            --color-border: #e2e8f0;
+            --color-danger: #e53e3e;
+        }
+
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+        body {
+            margin: 0; padding: 0; background: var(--color-bg); color: var(--color-text);
+            display: flex; flex-direction: column; height: 100vh;
+        }
+
+        /* Navigation */
+        .navbar {
+            background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+            padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+            height: 60px; flex-shrink: 0;
+        }
+        .nav-brand { font-size: 1.25rem; font-weight: 600; color: var(--color-primary); }
+        .nav-links { display: flex; gap: 16px; }
+        .nav-btn, .nav-link {
+            background: none; border: none; padding: 8px 16px; font-size: 14px;
+            font-weight: 500; cursor: pointer; color: var(--color-text);
+            border-radius: 6px; text-decoration: none; display: inline-block;
+        }
+        .nav-btn:hover, .nav-link:hover { background: var(--color-bg); }
+        .nav-btn.active { background: #ebf8ff; color: var(--color-primary); }
+        .nav-link.external { border: 1px solid var(--color-border); }
+
+        /* Main Content Area */
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* Views */
+        .view-section { display: none; width: 100%; height: 100%; }
+        .view-section.active { display: flex; }
+
+        /* -- Reflections View -- */
+        .sidebar {
+            width: 300px; background: var(--color-surface); border-right: 1px solid var(--color-border);
+            overflow-y: auto; padding: 20px; flex-shrink: 0;
+        }
+        .editor-area {
+            flex: 1; display: flex; flex-direction: column; padding: 30px;
+            background: var(--color-bg); overflow-y: auto;
+        }
+        
+        /* Folders */
+        .folder { margin-bottom: 12px; }
+        .folder summary {
+            padding: 10px 14px; background: #f8fafc; border: 1px solid var(--color-border);
+            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 15px;
+            user-select: none; transition: background 0.2s;
+        }
+        .folder summary:hover { background: #edf2f7; }
+        .folder-content {
+            padding: 8px 0 8px 16px; display: flex; flex-direction: column; gap: 4px;
+            border-left: 2px solid var(--color-border); margin-left: 14px; margin-top: 4px;
+        }
+        .week-btn {
+            text-align: left; padding: 8px 12px; border: none; background: transparent;
+            cursor: pointer; border-radius: 4px; color: var(--color-text); font-size: 14px;
+        }
+        .week-btn:hover { background: #e2e8f0; }
+        .week-btn.active { background: #ebf8ff; color: var(--color-primary); font-weight: 500; }
+
+        /* Editor */
+        .editor-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .editor-title-container { flex: 1; }
+        .editor-title { margin: 0 0 8px 0; font-size: 24px; }
+        .editor-subtitle { margin: 0 0 12px 0; font-size: 14px; color: var(--color-text-muted); font-style: italic; }
+        .editor-status { font-size: 13px; color: var(--color-text-muted); background: #e2e8f0; padding: 4px 10px; border-radius: 12px; }
+        .btn-reset { background: none; border: 1px solid var(--color-border); border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 12px; color: var(--color-text-muted); }
+        .btn-reset:hover { background: #edf2f7; color: var(--color-text); }
+
+        .text-editor {
+            flex: 1; width: 100%; resize: none; border: 1px solid var(--color-border);
+            border-radius: 8px; padding: 20px; font-size: 15px; line-height: 1.6;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); outline: none;
+            background: var(--color-surface);
+            font-family: inherit;
+        }
+        .text-editor:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(49,130,206,0.1); }
+
+        /* -- Calendar View -- */
+        .calendar-container { max-width: 800px; margin: 40px auto; width: 100%; }
+        .card {
+            background: var(--color-surface); border-radius: 10px; padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--color-border);
+        }
+        .form-row { display: flex; gap: 12px; margin-bottom: 24px; }
+        .form-row input[type="date"], .form-row input[type="text"] {
+            padding: 10px 12px; border: 1px solid var(--color-border);
+            border-radius: 6px; font-size: 15px; outline: none;
+        }
+        .form-row input[type="text"] { flex: 1; }
+        .btn-add {
+            background: var(--color-primary); color: white; border: none;
+            padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer;
+        }
+        .btn-add:hover { background: var(--color-primary-hover); }
+        
+        .event-list { list-style: none; padding: 0; margin: 0; }
+        .event-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px; border-bottom: 1px solid var(--color-border);
+        }
+        .event-item:last-child { border-bottom: none; }
+        .event-date { font-weight: 600; color: var(--color-primary); min-width: 120px; }
+        .event-title { flex: 1; }
+        .btn-delete { background: none; border: none; color: var(--color-danger); cursor: pointer; padding: 4px 8px; font-size: 13px; }
+        .btn-delete:hover { text-decoration: underline; }
+
+        .empty-state { text-align: center; color: var(--color-text-muted); padding: 40px; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation -->
+    <div class="navbar">
+        <div class="nav-brand">Training Portfolio</div>
+        <div class="nav-links">
+            <button class="nav-btn active" onclick="switchView(event, 'reflections')">📝 Weekly Reflections</button>
+            <button class="nav-btn" onclick="switchView(event, 'calendar')">📅 Important Dates</button>
+            <a href="training_dashboard.html" class="nav-link external" title="Ensure both files are in the same folder to link properly">📋 College Requirements</a>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- REFLECTIONS VIEW -->
+        <div id="view-reflections" class="view-section active">
+            <!-- Sidebar with Folders -->
+            <div class="sidebar">
+                <h3 style="margin-top: 0; margin-bottom: 20px;">Reflection Periods</h3>
+
+                <!-- Folders and weeks will be injected by JS -->
+                <div id="folders-container"></div>
+            </div>
+
+            <!-- Editor Area -->
+            <div class="editor-area">
+                <div id="welcome-screen" class="empty-state" style="margin-top: 100px;">
+                    <h2 style="color: var(--color-text);">Select a week to begin your reflection</h2>
+                    <p>Your writing will be automatically saved to your browser.</p>
+                </div>
+
+                <div id="editor-screen" style="display: none; height: 100%; flex-direction: column;">
+                    <div class="editor-header">
+                        <div class="editor-title-container">
+                            <h2 id="current-week-title" class="editor-title">Week Title</h2>
+                            <p class="editor-subtitle">(Including interesting cases, learning points, professional reflections)</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span id="save-status" class="editor-status">All changes saved</span>
+                            <br><br>
+                            <button class="btn-reset" onclick="resetTemplate()">Reset Template</button>
+                        </div>
+                    </div>
+                    <textarea id="reflection-input" class="text-editor" spellcheck="false"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- CALENDAR VIEW -->
+        <div id="view-calendar" class="view-section" style="background: var(--color-bg); overflow-y: auto;">
+            <div class="calendar-container">
+                <div class="card">
+                    <h2 style="margin-top: 0; margin-bottom: 20px;">Important Dates Calendar</h2>
+                    
+                    <form id="event-form" class="form-row" onsubmit="addEvent(event)">
+                        <input type="date" id="event-date" required>
+                        <input type="text" id="event-title" placeholder="Event description (e.g., Seminar, Exam)" required>
+                        <button type="submit" class="btn-add">Add Date</button>
+                    </form>
+
+                    <ul id="event-list" class="event-list">
+                        <!-- Events populated by JS -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========= WEEK GENERATION =========
+        function generateWeeks() {
+            const startDate = new Date(2026, 1, 9); // 9 Feb 2026 (month is 0-indexed)
+            const endDate = new Date(2027, 0, 31); // 31 Jan 2027
+            let current = new Date(startDate.getTime());
+            let weekNum = 1;
+
+            const periods = {
+                "Feb - May 2026": [],
+                "Jun - Sep 2026": [],
+                "Oct 2026 - Jan 2027": []
+            };
+
+            while (current <= endDate) {
+                const year = current.getFullYear();
+                const month = current.getMonth() + 1; // 1–12
+
+                const info = {
+                    date: new Date(current.getTime()),
+                    weekNum
+                };
+
+                if (year === 2026 && [2,3,4,5].includes(month)) {
+                    periods["Feb - May 2026"].push(info);
+                } else if (year === 2026 && [6,7,8,9].includes(month)) {
+                    periods["Jun - Sep 2026"].push(info);
+                } else if ((year === 2026 && [10,11,12].includes(month)) || (year === 2027 && month === 1)) {
+                    periods["Oct 2026 - Jan 2027"].push(info);
+                }
+
+                current.setDate(current.getDate() + 7);
+                weekNum++;
+            }
+
+            const container = document.getElementById('folders-container');
+            container.innerHTML = '';
+
+            Object.entries(periods).forEach(([label, weeks]) => {
+                const details = document.createElement('details');
+                details.className = 'folder';
+
+                const summary = document.createElement('summary');
+                summary.textContent = '📁 ' + label;
+                details.appendChild(summary);
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'folder-content';
+
+                weeks.forEach(info => {
+                    const d = info.date;
+                    const weekId = `week-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                    const weekNumLabel = info.weekNum;
+                    const displayShort = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    const displayFull = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const titleStr = `Weekly reflections Week ${weekNumLabel} ${displayFull}`;
+
+                    const btn = document.createElement('button');
+                    btn.className = 'week-btn';
+                    btn.textContent = `📄 Week ${weekNumLabel} (${displayShort})`;
+                    btn.onclick = (evt) => openReflection(evt, weekId, titleStr);
+
+                    contentDiv.appendChild(btn);
+                });
+
+                details.appendChild(contentDiv);
+                container.appendChild(details);
+            });
+        }
+
+        // Template text
+        const templateText = `Communicable diseases:
+
+
+Immunisation:
+
+
+Environmental health:
+
+
+Aboriginal team:
+
+
+Project work:
+
+Healthy skins, healthy kids (activities, updates):
+
+
+Evaluation of pre-call programme for Aboriginal and Torres Strait Islander infants (activities, updates):
+
+
+Cold chain management systems review (activities, updates):
+
+
+Education completed:
+
+Papers:
+
+
+Seminars:
+
+
+Meetings:
+
+
+Conferences:
+`;
+
+        // ========= NAVIGATION LOGIC =========
+        function switchView(evt, viewName) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            evt.currentTarget.classList.add('active');
+
+            document.querySelectorAll('.view-section').forEach(view => view.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+        }
+
+        // ========= REFLECTIONS LOGIC =========
+        let currentWeekId = null;
+        const textArea = document.getElementById('reflection-input');
+        const saveStatus = document.getElementById('save-status');
+        let saveTimeout;
+
+        function openReflection(evt, weekId, title) {
+            document.querySelectorAll('.week-btn').forEach(btn => btn.classList.remove('active'));
+            evt.currentTarget.classList.add('active');
+
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('editor-screen').style.display = 'flex';
+            document.getElementById('current-week-title').innerText = title;
+
+            currentWeekId = weekId;
+            const savedContent = localStorage.getItem('reflection_' + weekId);
+
+            if (savedContent) {
+                textArea.value = savedContent;
+            } else {
+                textArea.value = templateText;
+                localStorage.setItem('reflection_' + weekId, templateText);
+            }
+
+            saveStatus.innerText = 'Loaded';
+            setTimeout(() => saveStatus.innerText = 'All changes saved', 1000);
+        }
+
+        function resetTemplate() {
+            if (!currentWeekId) return;
+            if (confirm("Reset this week's reflection to the blank template? This will erase your current text for this week.")) {
+                textArea.value = templateText;
+                localStorage.setItem('reflection_' + currentWeekId, templateText);
+                saveStatus.innerText = 'Template reset';
+                setTimeout(() => saveStatus.innerText = 'All changes saved', 1000);
+            }
+        }
+
+        textArea.addEventListener('input', () => {
+            saveStatus.innerText = 'Saving...';
+            clearTimeout(saveTimeout);
+            
+            saveTimeout = setTimeout(() => {
+                if (currentWeekId) {
+                    localStorage.setItem('reflection_' + currentWeekId, textArea.value);
+                    saveStatus.innerText = 'Saved automatically';
+                }
+            }, 500);
+        });
+
+        // ========= CALENDAR LOGIC =========
+        let events = JSON.parse(localStorage.getItem('training_events')) || [];
+
+        function renderEvents() {
+            const list = document.getElementById('event-list');
+            list.innerHTML = '';
+
+            if (events.length === 0) {
+                list.innerHTML = '<li class="empty-state" style="padding: 20px;">No upcoming dates added yet.</li>';
+                return;
+            }
+
+            events.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            events.forEach((ev, index) => {
+                const d = new Date(ev.date);
+                const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                const li = document.createElement('li');
+                li.className = 'event-item';
+                li.innerHTML = `
+                    <div class="event-date">${dateStr}</div>
+                    <div class="event-title">${ev.title}</div>
+                    <button class="btn-delete" onclick="deleteEvent(${index})">Remove</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function addEvent(e) {
+            e.preventDefault();
+            const dateInput = document.getElementById('event-date').value;
+            const titleInput = document.getElementById('event-title').value;
+
+            events.push({ date: dateInput, title: titleInput });
+            localStorage.setItem('training_events', JSON.stringify(events));
+            
+            document.getElementById('event-form').reset();
+            renderEvents();
+        }
+
+        function deleteEvent(index) {
+            events.splice(index, 1);
+            localStorage.setItem('training_events', JSON.stringify(events));
+            renderEvents();
+        }
+
+        // Initialise
+        generateWeeks();
+        renderEvents();
+    </script>
+</body>
+</html>
